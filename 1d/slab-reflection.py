@@ -1,111 +1,47 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
+from __future__ import division
 import math, cmath
 
 import numpy as np
-import numpy.matlib
-import scipy.linalg
 import matplotlib.pyplot as plt
 
-
-def solve_with_fem(
-        element_count,
-        node_count,
-        alphas,
-        betas,
-        ls,
-        fs,
-        left_bc,
-        right_bc):
-
-    A = np.matlib.zeros((3, node_count), dtype=np.complex)
-    for i in range(element_count):
-        local_k_11 = alphas[i] / ls[i] + betas[i] * ls[i] / 3
-        local_k_22 = local_k_11
-        A[1, i] += local_k_11
-        A[1, i + 1] += local_k_22
-
-    for i in range(element_count):
-        local_k_12 = -alphas[i] / ls[i] + betas[i] * ls[i] / 6
-        local_k_21 = local_k_12
-        A[0, i + 1] = local_k_12
-        A[2, i] = local_k_21
-
-    b = np.zeros(node_count, dtype=np.complex)
-    for i in range(element_count):
-        local_b_1 = fs[i] * ls[i] / 2
-        local_b_2 = local_b_1
-        b[i] += local_b_1
-        b[i + 1] += local_b_2
-
-    # left bc
-    if left_bc['type'] == 'dirichlet':
-        A[1, 0] = 1
-        b[0] = left_bc['p']
-        b[1] -= A[2, 0] * left_bc['p']
-        A[0, 1] = 0
-        A[2, 0] = 0
-    elif left_bc['type'] == 'mixed':
-        A[1, 0] += left_bc['gamma']
-        b[0] += left_bc['q']
-    else:
-        raise ValueError('Unsupported BC type')
-
-    # right bc
-    if right_bc['type'] == 'dirichlet':
-        A[1, -1] = 1
-        b[-1] = right_bc['p']
-        b[-2] -= A[0, -1] * right_bc['p']
-        A[0, -1] = 0
-        A[2, -2] = 0
-    elif right_bc['type'] == 'mixed':
-        A[1, -1] += right_bc['gamma']
-        b[-1] += right_bc['q']
-    else:
-        raise ValueError('Unsupported BC type')
-
-    return scipy.linalg.solve_banded((1, 1), A, b)
+from fem_1d import BoundaryCondition, fem_1d
 
 
 def compute_reflection_ez(theta, element_count):
     # physical problem setup
     L = 1
-    mu_r = 2 - .1j
+    mu_r = lambda x: 2 - .1j
     k0 = 10 * math.pi / L
     eps_r = lambda x: 4 + (2 - .1j) * (1 - x / L)**2
     E0 = 1
 
     # FEM setup
     l = L / element_count
-    node_count = element_count + 1
-    ls = [l] * element_count
-    element_middles = [l * (0.5 + i) for i in range(element_count)]
-    alphas = [1 / mu_r] * element_count
-    betas = map(
-            lambda x: -k0**2 * (eps_r(x) - 1 / mu_r * math.sin(theta)**2),
-            element_middles
-    )
-    fs = [0] * element_count
+    mesh = [ i * l for i in range(element_count + 1) ]
+    alpha = lambda x: 1 / mu_r(x)
+    beta = lambda x: -k0**2 * (eps_r(x) - 1 / mu_r(x) * math.sin(theta)**2)
+    f = lambda x: 0
 
     # boundary condition setup
-    left_bc = { 'type' : 'dirichlet', 'p' : 0 }
-    right_bc = {
-        'type' : 'mixed',
-        'gamma' : k0 * math.cos(theta) * 1j,
-        'q' : (2j * k0 * math.cos(theta) * E0 *
+    left_bc = BoundaryCondition('dirichlet', p=0)
+    right_bc = BoundaryCondition(
+        'mixed',
+        gamma=(k0 * math.cos(theta) * 1j),
+        q=(2j * k0 * math.cos(theta) * E0 *
             cmath.exp(1j * k0 * L * math.cos(theta)))
-    }
+    )
 
-    E_zs = solve_with_fem(
-            element_count,
-            node_count,
-            alphas,
-            betas,
-            ls,
-            fs,
+    E_zs = fem_1d(
+            mesh,
+            alpha,
+            beta,
+            f,
             left_bc,
-            right_bc)
+            right_bc,
+            1,
+            dtype='complex')
 
     return ((E_zs[-1] - E0 * cmath.exp(1j * k0 * L * math.cos(theta))) /
         (E0 * cmath.exp(-1j * k0 * L * math.cos(theta))))
@@ -114,41 +50,36 @@ def compute_reflection_ez(theta, element_count):
 def compute_reflection_hz(theta, element_count):
     # physical problem setup
     L = 1
-    mu_r = 2 - .1j
+    mu_r = lambda x: 2 - .1j
     k0 = 10 * math.pi / L
     eps_r = lambda x: 4 + (2 - .1j) * (1 - x / L)**2
     H0 = 1
 
     # FEM setup
     l = L / element_count
-    node_count = element_count + 1
-    ls = [l] * element_count
-    element_middles = [l * (0.5 + i) for i in range(element_count)]
-    alphas = map(lambda x: 1 / eps_r(x), element_middles)
-    betas = map(
-            lambda x: -k0**2 * (mu_r - 1 / eps_r(x) * math.sin(theta)**2),
-            element_middles
-    )
-    fs = [0] * element_count
+    mesh = [ l * i for i in range(element_count + 1) ]
+    alpha = lambda x: 1 / eps_r(x)
+    beta = lambda x: -k0**2 * (mu_r(x) - 1 / eps_r(x) * math.sin(theta)**2)
+    f = lambda x: 0
 
     # boundary condition setup
-    left_bc = { 'type' : 'mixed', 'gamma' : 0, 'q' : 0 }
-    right_bc = {
-        'type' : 'mixed',
-        'gamma' : k0 * math.cos(theta) * 1j,
-        'q' : (2j * k0 * math.cos(theta) * H0 *
+    left_bc = BoundaryCondition('neumann', q=0)
+    right_bc = BoundaryCondition(
+        'mixed',
+        gamma=k0 * math.cos(theta) * 1j,
+        q=(2j * k0 * math.cos(theta) * H0 *
             cmath.exp(1j * k0 * L * math.cos(theta)))
-    }
+    )
 
-    H_zs = solve_with_fem(
-            element_count,
-            node_count,
-            alphas,
-            betas,
-            ls,
-            fs,
+    H_zs = fem_1d(
+            mesh,
+            alpha,
+            beta,
+            f,
             left_bc,
-            right_bc)
+            right_bc,
+            1,
+            dtype='complex')
 
     return ((H_zs[-1] - H0 * cmath.exp(1j * k0 * L * math.cos(theta))) /
         (H0 * cmath.exp(-1j * k0 * L * math.cos(theta))))
