@@ -63,6 +63,10 @@ def fem_1d(
     else:
         raise NotImplementedError
 
+LINEAR = 1
+QUADRATIC = 2
+CUBIC = 3
+
 
 def fem_1d_1st_order(
         mesh,
@@ -76,17 +80,23 @@ def fem_1d_1st_order(
     if 'dtype' in kwargs:
         if kwargs['dtype'] == 'real':
             dtype = np.float
-            quadrature = scipy.integrate.fixed_quad
         elif kwargs['dtype'] == 'complex':
             dtype = np.complex
-            quadrature = complex_quadrature
         else:
             raise ValueError('Can only compute in reals or complex')
     else:
         dtype = np.float
 
+    if dtype is np.complex:
+        quadrature = complex_quadrature
+    else:
+        quadrature = (lambda f, a, b, **kwargs:
+                scipy.integrate.fixed_quad(f, a, b, **kwargs)[0])
+
     node_count = len(mesh)
     element_count = node_count - 1
+
+    vec_f = np.vectorize(f)
 
     K = np.matlib.zeros((3, node_count), dtype=dtype)
     b = np.zeros(node_count, dtype=dtype)
@@ -108,7 +118,7 @@ def fem_1d_1st_order(
                         x0, x1, n=3)
                 K_e[j, i] = K_e[i, j]
             b_e[i] = quadrature(
-                    lambda x: f(x) * basis[i](x),
+                    lambda x: vec_f(x) * basis[i](x),
                     x0, x1, n=3)
 
         K[1, element] += K_e[0, 0]

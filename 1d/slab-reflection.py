@@ -6,7 +6,7 @@ import math, cmath
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fem_1d import BoundaryCondition, fem_1d
+from fem_1d import BoundaryCondition, fem_1d, LINEAR
 
 
 def compute_reflection_ez(theta, element_count):
@@ -19,7 +19,7 @@ def compute_reflection_ez(theta, element_count):
 
     # FEM setup
     l = L / element_count
-    mesh = [ i * l for i in range(element_count + 1) ]
+    mesh = np.linspace(0, L, element_count + 1)
     alpha = lambda x: 1 / mu_r(x)
     beta = lambda x: -k0**2 * (eps_r(x) - 1 / mu_r(x) * math.sin(theta)**2)
     f = lambda x: 0
@@ -40,7 +40,7 @@ def compute_reflection_ez(theta, element_count):
             f,
             left_bc,
             right_bc,
-            1,
+            LINEAR,
             dtype='complex')
 
     return ((E_zs[-1] - E0 * cmath.exp(1j * k0 * L * math.cos(theta))) /
@@ -57,7 +57,7 @@ def compute_reflection_hz(theta, element_count):
 
     # FEM setup
     l = L / element_count
-    mesh = [ l * i for i in range(element_count + 1) ]
+    mesh = np.linspace(0, L, element_count + 1)
     alpha = lambda x: 1 / eps_r(x)
     beta = lambda x: -k0**2 * (mu_r(x) - 1 / eps_r(x) * math.sin(theta)**2)
     f = lambda x: 0
@@ -78,7 +78,7 @@ def compute_reflection_hz(theta, element_count):
             f,
             left_bc,
             right_bc,
-            1,
+            LINEAR,
             dtype='complex')
 
     return ((H_zs[-1] - H0 * cmath.exp(1j * k0 * L * math.cos(theta))) /
@@ -86,7 +86,7 @@ def compute_reflection_hz(theta, element_count):
 
 
 def main():
-    runs = 50
+    runs = 30
     thetas = np.linspace(0, math.pi / 2, runs)
     rs_50 = np.zeros(runs)
     rs_100 = np.zeros(runs)
