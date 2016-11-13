@@ -5,6 +5,7 @@ import numpy.matlib
 import scipy.linalg
 import scipy.integrate
 
+import lagrange_polynomials
 
 class BoundaryCondition(object):
     def __init__(self, bctype, **kwargs):
@@ -18,20 +19,6 @@ class BoundaryCondition(object):
             self.gamma = kwargs.get('gamma', 0.)
         else:
             raise ValueError('Unsupported BC type')
-
-
-def lagrange_1_polynomials(x0, x1):
-    return [
-            lambda x : (x - x1) / (x0 - x1),
-            lambda x : (x - x0) / (x1 - x0)
-    ]
-
-
-def lagrange_1_polynomials_derivatives(x0, x1):
-    return [
-            lambda x: 1 / (x0 - x1),
-            lambda x: 1 / (x1 - x0)
-    ]
 
 
 def complex_quadrature(f, a, b, **kwargs):
@@ -56,8 +43,8 @@ def fem_1d(
     if order == 1:
         return fem_1d_1st_order(mesh, alpha, beta, f, left_bc, right_bc,
                 **kwargs)
-    # elif order == 2:
-        # return fem_1d_2nd_order(mesh, alpha, beta, f, left_bc, right_bc)
+    elif order == 2:
+        return fem_1d_2nd_order(mesh, alpha, beta, f, left_bc, right_bc)
     # elif order == 3:
         # return fem_1d_3rd_order(mesh, alpha, beta, f, left_bc, right_bc)
     else:
@@ -107,8 +94,8 @@ def fem_1d_1st_order(
 
         K_e = np.matlib.zeros((2,2), dtype=dtype)
         b_e = np.zeros(2, dtype=dtype)
-        basis = lagrange_1_polynomials(x0, x1)
-        basis_derivatives = lagrange_1_polynomials_derivatives(x0, x1)
+        basis = lagrange_polynomials.basis(1, x0, x1)
+        basis_derivatives = lagrange_polynomials.basis_derivatives(1, x0, x1)
         for i in range(2):
             for j in range(i, 2):
                 K_e[i, j] = quadrature(
@@ -157,4 +144,101 @@ def fem_1d_1st_order(
         b[-1] += right_bc.q
 
     return scipy.linalg.solve_banded((1, 1), K, b)
+
+def fem_1d_2nd_order(
+        mesh,
+        alpha,
+        beta,
+        f,
+        left_bc,
+        right_bc,
+        **kwargs):
+
+    if 'dtype' in kwargs:
+        if kwargs['dtype'] == 'real':
+            dtype = np.float
+        elif kwargs['dtype'] == 'complex':
+            dtype = np.complex
+        else:
+            raise ValueError('Can only compute in reals or complex')
+    else:
+        dtype = np.float
+
+    if dtype is np.complex:
+        quadrature = complex_quadrature
+    else:
+        quadrature = (lambda f, a, b, **kwargs:
+                scipy.integrate.fixed_quad(f, a, b, **kwargs)[0])
+
+    node_count = len(mesh)
+    element_count = (node_count - 1) // 2
+
+    vec_f = np.vectorize(f)
+
+    K = np.matlib.zeros((5, node_count), dtype=dtype)
+    b = np.zeros(node_count, dtype=dtype)
+
+    for element in range(element_count):
+        element_shift = element * 2
+        x0 = mesh[element_shift]
+        x1 = mesh[element_shift + 1]
+        x2 = mesh[element_shift + 2]
+
+        K_e = np.matlib.zeros((3,3), dtype=dtype)
+        b_e = np.zeros(3, dtype=dtype)
+        basis = lagrange_polynomials.basis(2, x0, x1, x2)
+        basis_derivatives = \
+                lagrange_polynomials.basis_derivatives(2, x0, x1, x2)
+        for i in range(3):
+            for j in range(i, 3):
+                K_e[i, j] = quadrature(
+                        lambda x: (alpha(x) * basis_derivatives[i](x) *
+                            basis_derivatives[j](x) +
+                            beta(x) * basis[i](x) * basis[j](x)),
+                        x0, x2, n=3)
+                K_e[j, i] = K_e[i, j]
+            b_e[i] = quadrature(
+                    lambda x: vec_f(x) * basis[i](x),
+                    x0, x2, n=3)
+
+        for i in range(3):
+            for j in range(3):
+                diagonal = i - j
+                K[diagonal + 2, j + element_shift] += K_e[i, j]
+
+            b[i + element_shift] += b_e[i]
+
+    # left bc
+    if left_bc.type == 'dirichlet':
+        K[2, 0] = 1
+        b[0] = left_bc.p
+        b[1] -= K[3, 0] * left_bc.p
+        b[2] -= K[4, 0] * left_bc.p
+        K[0, 2] = 0
+        K[1, 1] = 0
+        K[3, 0] = 0
+        K[4, 0] = 0
+    elif left_bc.type == 'neumann':
+        b[0] += left_bc.q
+    else: # mixed
+        K[2, 0] += left_bc.gamma
+        b[0] += left_bc.q
+
+    # right bc
+    if right_bc.type == 'dirichlet':
+        K[2, -1] = 1
+        b[-1] = right_bc.p
+        b[-2] -= K[1, -1] * right_bc.p
+        b[-3] -= K[0, -1] * right_bc.p
+        K[3, -2] = 0
+        K[4, -3] = 0
+        K[1, -1] = 0
+        K[0, -1] = 0
+    elif right_bc.type == 'neumann':
+        pass
+    else: # mixed
+        K[2, -1] += right_bc.gamma
+        b[-1] += right_bc.q
+
+    return scipy.linalg.solve_banded((2, 2), K, b)
 

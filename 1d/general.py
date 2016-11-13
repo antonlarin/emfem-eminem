@@ -6,11 +6,11 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fem_1d import fem_1d, BoundaryCondition, LINEAR
+from fem_1d import fem_1d, BoundaryCondition, LINEAR, QUADRATIC
 
 # equation setup
 L = 1
-element_count = 20
+element_count = 6
 l = L / element_count
 mesh = np.linspace(0, L, element_count + 1)
 alpha = lambda x: 0.7
@@ -28,12 +28,15 @@ right_bc = BoundaryCondition('mixed', gamma=-2, q=-1.3 * math.e)
 
 def main():
     phis = fem_1d(mesh, alpha, beta, f, left_bc, right_bc, LINEAR)
+    phis_2 = fem_1d(mesh, alpha, beta, f, left_bc, right_bc, QUADRATIC)
 
     # plot results
-    plt.plot(mesh, phis, 'b', label='Numerical')
+    plt.plot(mesh, phis, 'b', label='Numerical 1 order')
+    plt.plot(mesh, phis_2, 'g', label='Numerical 2 order')
 
     solution_xs = np.linspace(0, L, 100)
-    solution = map(lambda x: math.exp(x) * math.cos(2 * math.pi * x), solution_xs)
+    solution = map(lambda x: math.exp(x) * math.cos(2 * math.pi * x),
+            solution_xs)
     plt.plot(solution_xs, solution, 'r', label='Analytical')
 
     plt.grid()
