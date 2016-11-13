@@ -21,6 +21,30 @@ class BoundaryCondition(object):
             raise ValueError('Unsupported BC type')
 
 
+class FemSolution(object):
+    def __init__(self, order, mesh, phis):
+        self.order = order
+        self.mesh = mesh
+        self.element_count = (len(mesh) - 1) // order
+        self.phis = phis
+
+    def __call__(self, x):
+        for element in range(self.element_count):
+            x_es = self.mesh[element * self.order :
+                    (element + 1) * self.order + 1]
+            if (x_es[0] <= x and x <= x_es[-1]):
+                basis = lagrange_polynomials.basis(self.order, *x_es)
+                phi_es = self.phis[element * self.order :
+                        (element + 1) * self.order + 1]
+                phi_of_x = 0
+                for N, phi in zip(basis, phi_es):
+                    phi_of_x += N(x) * phi
+
+                return phi_of_x
+
+        raise ValueError('x is outside of domain')
+
+
 def complex_quadrature(f, a, b, **kwargs):
     real_integral, _ = scipy.integrate.fixed_quad(lambda x: f(x).real,
             a, b, **kwargs)
@@ -143,7 +167,8 @@ def fem_1d_1st_order(
         K[1, -1] += right_bc.gamma
         b[-1] += right_bc.q
 
-    return scipy.linalg.solve_banded((1, 1), K, b)
+    phis = scipy.linalg.solve_banded((1, 1), K, b)
+    return FemSolution(1, mesh, phis)
 
 def fem_1d_2nd_order(
         mesh,
@@ -240,5 +265,6 @@ def fem_1d_2nd_order(
         K[2, -1] += right_bc.gamma
         b[-1] += right_bc.q
 
-    return scipy.linalg.solve_banded((2, 2), K, b)
+    phis = scipy.linalg.solve_banded((2, 2), K, b)
+    return FemSolution(2, mesh, phis)
 

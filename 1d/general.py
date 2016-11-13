@@ -27,17 +27,16 @@ right_bc = BoundaryCondition('mixed', gamma=-2, q=-1.3 * math.e)
 
 
 def main():
-    phis = fem_1d(mesh, alpha, beta, f, left_bc, right_bc, LINEAR)
+    phis_1 = fem_1d(mesh, alpha, beta, f, left_bc, right_bc, LINEAR)
     phis_2 = fem_1d(mesh, alpha, beta, f, left_bc, right_bc, QUADRATIC)
 
     # plot results
-    plt.plot(mesh, phis, 'b', label='Numerical 1 order')
-    plt.plot(mesh, phis_2, 'g', label='Numerical 2 order')
+    xs = np.linspace(0, L, 100)
+    plt.plot(xs, map(phis_1, xs), 'b', label='Numerical 1 order')
+    plt.plot(xs, map(phis_2, xs), 'g', label='Numerical 2 order')
 
-    solution_xs = np.linspace(0, L, 100)
-    solution = map(lambda x: math.exp(x) * math.cos(2 * math.pi * x),
-            solution_xs)
-    plt.plot(solution_xs, solution, 'r', label='Analytical')
+    solution = map(lambda x: math.exp(x) * math.cos(2 * math.pi * x), xs)
+    plt.plot(xs, solution, 'r', label='Analytical')
 
     plt.grid()
     plt.legend(loc='best')
