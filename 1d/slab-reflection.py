@@ -92,9 +92,9 @@ def main():
     rs_quadratic = np.zeros(runs)
     rs_cubic = np.zeros(runs)
     for i, theta in enumerate(thetas):
-        rs_linear[i] = abs(compute_reflection_ez(theta, LINEAR, 50))**2
-        rs_quadratic[i] = abs(compute_reflection_ez(theta, QUADRATIC, 50))**2
-        rs_cubic[i] = abs(compute_reflection_ez(theta, CUBIC, 50))**2
+        rs_linear[i] = abs(compute_reflection_ez(theta, LINEAR, 50))
+        rs_quadratic[i] = abs(compute_reflection_ez(theta, QUADRATIC, 50))
+        rs_cubic[i] = abs(compute_reflection_ez(theta, CUBIC, 50))
 
     degrees = map(lambda theta: 180 * theta / math.pi, thetas)
 
@@ -112,9 +112,9 @@ def main():
 
     plt.clf()
     for i, theta in enumerate(thetas):
-        rs_linear[i] = abs(compute_reflection_hz(theta, LINEAR, 50))**2
-        rs_quadratic[i] = abs(compute_reflection_hz(theta, QUADRATIC, 50))**2
-        rs_cubic[i] = abs(compute_reflection_hz(theta, CUBIC, 50))**2
+        rs_linear[i] = abs(compute_reflection_hz(theta, LINEAR, 50))
+        rs_quadratic[i] = abs(compute_reflection_hz(theta, QUADRATIC, 50))
+        rs_cubic[i] = abs(compute_reflection_hz(theta, CUBIC, 50))
 
     # plot results
     plt.plot(degrees, rs_linear, 'b', label='FEM linear')
