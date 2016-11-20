@@ -41,6 +41,8 @@ class FemSolution(object):
                         eta * self.phis[element.v2.idx] +
                         (1 - xi - eta) * self.phis[element.v3.idx])
 
+        return self.phis.min()
+
 
 def assemble_system(problem, mesh):
     node_count = len(mesh.nodes)

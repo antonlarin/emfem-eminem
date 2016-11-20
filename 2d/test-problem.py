@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
+from __future__ import print_function
 import math
 
 import numpy as np
@@ -30,13 +30,13 @@ def main():
     # plot results
     samples = 50
     xs = np.linspace(0., 1., samples)
-    plotgrid = np.meshgrid(xs, xs)
+    plot_grid = np.meshgrid(xs, xs)
 
-    phis_vec = np.vectorize(lambda x, y: phis(x, y))
+    phis_vec = np.vectorize(phis)
     solution_vec = np.vectorize(lambda x, y:
             math.exp(-0.5 * ((x - 0.5)**2 + (y - 0.5)**2)))
-    phi = phis_vec(*plotgrid).reshape(samples, samples)
-    solution = solution_vec(*plotgrid).reshape(samples, samples)
+    phi = phis_vec(*plot_grid)
+    solution = solution_vec(*plot_grid)
 
     plt.gcf().set_size_inches(10, 4)
     plt.subplot(121)
@@ -60,6 +60,7 @@ def main():
     plt.title(r'$|\tilde{\phi} - \phi|$')
 
     plt.subplots_adjust(bottom=0.12, left=0.06, right=0.96, hspace=0.1)
+    plt.suptitle(r'$\phi=\exp(-\frac{1}{2}((x-1/2)^2+(y-1/2)^2))$')
 
     plt.savefig('test-problem.png', dpi=120)
 
