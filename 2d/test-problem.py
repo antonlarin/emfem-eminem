@@ -19,7 +19,7 @@ f = lambda x, y: math.exp(-0.5 * ((x - 0.5)**2 + (y - 0.5)**2)) * (
 
 # boundary condition setup
 gamma = lambda x, y: 0
-q = lambda x, y: -0.5 * math.exp(-0.5 * ((x - 0.5)**2 + (y - 0.5)**2))
+q = lambda x, y: 0.5 * math.exp(-0.5 * ((x - 0.5)**2 + (y - 0.5)**2))
 p = lambda x, y: math.exp(-0.5 * ((x - 0.5)**2 + (y - 0.5)**2))
 
 problem = Problem2D(alpha_x, alpha_y, beta, f, gamma, q, p)

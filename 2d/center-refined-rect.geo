@@ -28,7 +28,7 @@ Line Loop(10) = {6, 7, 8, 9};
 Plane Surface(11) = {5, 10};
 Plane Surface(12) = {10};
 
-Physical Line("dirichlet-boundary") = {1, 2, 3, 4};
-// Physical Line("third-kind-boundary") = {2, 4};
+Physical Line("dirichlet-boundary") = {1, 3};
+Physical Line("third-kind-boundary") = {2, 4};
 Physical Surface("Whole region") = {11, 12};
 
