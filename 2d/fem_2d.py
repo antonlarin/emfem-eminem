@@ -58,17 +58,8 @@ def assemble_system(problem, mesh):
 
             b[node1.idx] += b_e[i]
 
-    for edge in mesh.third_kind_edges:
-        gamma_s = edge.average(problem.gamma)
-        q_s = edge.average(problem.q)
-        l_s = edge.length
-
-        for node1 in edge.nodes:
-            for node2 in edge.nodes:
-                K[node1.idx, node2.idx] += gamma_s * l_s / 6
-            K[node1.idx, node1.idx] += gamma_s * l_s / 6
-            b[node1.idx] += q_s * l_s / 2
-
+    K, b = impose_third_kind_conditions(problem, mesh, K, b)
+    K, b = impose_continuity_conditions(mesh, K, b)
     K, b = impose_dirichlet_conditions(problem, mesh, K, b)
 
     return K, b
@@ -101,6 +92,33 @@ def compute_system_on_element(problem, element):
 
     return K_e, b_e
 
+def impose_third_kind_conditions(problem, mesh, K, b):
+    for edge in mesh.third_kind_edges:
+        gamma_s = edge.average(problem.gamma)
+        q_s = edge.average(problem.q)
+        l_s = edge.length
+
+        for node1 in edge.nodes:
+            for node2 in edge.nodes:
+                K[node1.idx, node2.idx] += gamma_s * l_s / 6
+            K[node1.idx, node1.idx] += gamma_s * l_s / 6
+            b[node1.idx] += q_s * l_s / 2
+
+    return K, b
+
+
+def impose_continuity_conditions(mesh, K, b):
+    for node_idx1, node_idx2 in mesh.discontinuity_node_index_pairs:
+        for i in range(K.shape[0]):
+            K[node_idx2, i] = 0
+
+        K[node_idx2, node_idx1] = 1
+        K[node_idx2, node_idx2] = -1
+        b[node_idx2] = 0
+
+    return K, b
+
+
 def impose_dirichlet_conditions(problem, mesh, K, b):
     for node in mesh.dirichlet_nodes:
         p_value = problem.p(node.x, node.y)
@@ -116,6 +134,7 @@ def impose_dirichlet_conditions(problem, mesh, K, b):
         b[node.idx] = p_value
 
     return K, b
+
 
 def fem_2d(problem, mesh):
     K, b = assemble_system(problem, mesh)

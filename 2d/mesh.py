@@ -11,6 +11,9 @@ class Mesh(object):
                 self.nodes, physical_entities)
         self.third_kind_edges = _find_third_kind_edges(element_descriptions,
                 self.nodes, physical_entities)
+        self.discontinuity_node_index_pairs = \
+                _find_discontinuity_node_pairs(element_descriptions,
+                        self.nodes, physical_entities)
 
 def _wrap_nodes(node_descriptions):
     wrap_node = lambda idx, x, y, z: Node(x, y, idx - 1)
@@ -64,7 +67,8 @@ def _find_dirichlet_nodes(element_descriptions, wrapped_nodes,
     return list(dirichlet_nodes)
 
 
-def _find_third_kind_edges(element_descriptions, wrapped_nodes, physical_entities):
+def _find_third_kind_edges(element_descriptions, wrapped_nodes,
+        physical_entities):
     try:
         third_kind_index = physical_entities['third-kind-boundary'][1]
     except KeyError:
@@ -84,6 +88,44 @@ def _find_third_kind_edges(element_descriptions, wrapped_nodes, physical_entitie
                     wrapped_nodes[node_indices[1] - 1]))
 
     return third_kind_edges
+
+
+def _find_discontinuity_node_pairs(element_descriptions, wrapped_nodes,
+        physical_entities):
+    try:
+        discontinuity_index = physical_entities['discontinuity'][1]
+    except KeyError:
+        return []
+
+    all_discontinuity_nodes = set()
+    MSH_2_POINT_LINE = 1
+    for element_description in element_descriptions:
+        element_type = element_description[1]
+        parent_physical_entity = element_description[3][0]
+        node_indices = element_description[4]
+
+        if (element_type == MSH_2_POINT_LINE and
+                parent_physical_entity == discontinuity_index):
+            all_discontinuity_nodes.add(wrapped_nodes[node_indices[0] - 1])
+            all_discontinuity_nodes.add(wrapped_nodes[node_indices[1] - 1])
+
+    discontinuity_node_index_pairs = []
+    while len(all_discontinuity_nodes) != 0:
+        node = all_discontinuity_nodes.pop()
+        duplicate = None
+        for duplicate_candidate in all_discontinuity_nodes:
+            distance = math.sqrt(
+                    (node.x - duplicate_candidate.x)**2 +
+                    (node.y - duplicate_candidate.y)**2)
+            if distance < 1e-7:
+                duplicate = duplicate_candidate
+                break
+
+        if not duplicate is None:
+            all_discontinuity_nodes.remove(duplicate)
+            discontinuity_node_index_pairs.append((node.idx, duplicate.idx))
+
+    return discontinuity_node_index_pairs
 
 
 def _triangle_area(v1, v2, v3):
