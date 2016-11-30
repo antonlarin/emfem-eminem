@@ -44,13 +44,13 @@ class FemSolution(object):
         return self.phis.min()
 
 
-def assemble_system(problem, mesh):
+def assemble_system(problem, mesh, dtype):
     node_count = len(mesh.nodes)
-    K = np.zeros((node_count, node_count))
-    b = np.zeros(node_count)
+    K = np.zeros((node_count, node_count), dtype=dtype)
+    b = np.zeros(node_count, dtype=dtype)
 
     for element in mesh.elements:
-        K_e, b_e = compute_system_on_element(problem, element)
+        K_e, b_e = compute_system_on_element(problem, element, dtype)
 
         for i, node1 in enumerate(element.nodes):
             for j, node2 in enumerate(element.nodes):
@@ -64,9 +64,9 @@ def assemble_system(problem, mesh):
 
     return K, b
 
-def compute_system_on_element(problem, element):
-    K_e = np.zeros((3, 3))
-    b_e = np.zeros(3)
+def compute_system_on_element(problem, element, dtype):
+    K_e = np.zeros((3, 3), dtype=dtype)
+    b_e = np.zeros(3, dtype=dtype)
     delta_e = element.area
 
     alpha_x_e = element.average(problem.alpha_x)
@@ -136,8 +136,18 @@ def impose_dirichlet_conditions(problem, mesh, K, b):
     return K, b
 
 
-def fem_2d(problem, mesh):
-    K, b = assemble_system(problem, mesh)
+def fem_2d(problem, mesh, **kwargs):
+    if 'dtype' in kwargs:
+        if kwargs['dtype'] == 'real':
+            dtype = np.float
+        elif kwargs['dtype'] == 'complex':
+            dtype = np.complex
+        else:
+            raise ValueError('Can only compute in reals or complex')
+    else:
+        dtype = np.float
+
+    K, b = assemble_system(problem, mesh, dtype)
     
     phis = scipy.linalg.solve(K, b)
     return FemSolution(mesh.elements, phis)
